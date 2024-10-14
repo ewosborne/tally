@@ -45,6 +45,7 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("descending", "d", false, "Sort descending")
+	rootCmd.Flags().BoolP("string", "s", false, "Sort by string, not count")
 
 }
 
@@ -71,9 +72,16 @@ func tally(cmd *cobra.Command) {
 		sortedLines = append(sortedLines, LineWithCount{line, count})
 	}
 
-	sort.Slice(sortedLines, func(i, j int) bool {
-		return sortedLines[i].count < sortedLines[j].count
-	})
+	str_sort, _ := cmd.Flags().GetBool("string")
+	if str_sort {
+		sort.Slice(sortedLines, func(i, j int) bool {
+			return sortedLines[i].line < sortedLines[j].line
+		})
+	} else {
+		sort.Slice(sortedLines, func(i, j int) bool {
+			return sortedLines[i].count < sortedLines[j].count
+		})
+	}
 
 	// reverse?
 	reverse, _ := cmd.Flags().GetBool("descending")
