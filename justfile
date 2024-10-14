@@ -6,3 +6,6 @@ run:
 
 build:
 	go build -o tally main.go
+
+test:
+	go run main.go < test.txt
