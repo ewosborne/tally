@@ -1,7 +1,6 @@
 /*
 Copyright © 2024 Eric Osborne
 No header.
-
 */
 package main
 
