@@ -4,12 +4,12 @@ fmt:
 run:
 	go run main.go
 
-build:
+build: fmt
 	go build -o tally main.go
 
-test:
+test: fmt
 	go run main.go < test.txt
 
-git comment:
+git comment: fmt
 	git commit -am "{{comment}}"
 	git push
