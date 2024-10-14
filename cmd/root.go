@@ -7,6 +7,8 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"slices"
 	"sort"
@@ -22,7 +24,7 @@ var rootCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		tally(cmd)
+		tally(cmd, args)
 	},
 }
 
@@ -49,15 +51,31 @@ func init() {
 
 }
 
-func tally(cmd *cobra.Command) {
-
-	// read all of stdin
-	lines := make(map[string]int)
-
-	scanner := bufio.NewScanner(os.Stdin)
+// countSingleFile returns map[string]int of a single reader.
+func countSingleFile(r io.Reader, lines map[string]int) {
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
 		lines[line] += 1
+	}
+}
+
+func tally(cmd *cobra.Command, args []string) {
+
+	lines := make(map[string]int)
+
+	// read stdin or take the names of one or more files
+	if len(args) == 0 {
+		countSingleFile(os.Stdin, lines)
+	} else {
+		for _, fname := range args {
+			file, err := os.Open(fname)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer file.Close()
+			countSingleFile(file, lines)
+		}
 	}
 
 	// now sort

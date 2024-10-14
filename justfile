@@ -7,8 +7,12 @@ run:
 build: fmt
 	go build -o tally main.go
 
-test: fmt
-	go run main.go < test.txt
+test: fmt build
+	./tally < test.txt
+	./tally test.txt
+	./tally test.txt test.txt
+	./tally test.txt test.txt test.txt
+
 
 git comment: fmt
 	git commit -am "{{comment}}"
