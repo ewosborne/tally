@@ -139,7 +139,7 @@ func tally(cmd *cobra.Command, args []string) {
 	for _, v := range sortedLines {
 		limit, _ := cmd.Flags().GetInt("min")
 		if v.count >= limit {
-			fmt.Println(v.count, ":", len(v.line), ":", v.line)
+			fmt.Println(v.count, ":", v.line)
 		}
 	}
 }
