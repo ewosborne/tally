@@ -27,7 +27,7 @@ to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		tally()
+		tally(cmd)
 	},
 }
 
@@ -50,12 +50,12 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	rootCmd.PersistentFlags().Bool("descending", false, "Sort descending")
+	rootCmd.Flags().BoolP("descending", "d", false, "Sort descending")
 
 }
 
-func tally() {
-	fmt.Println("hello from tally")
+func tally(cmd *cobra.Command) {
+	reverse, _ := cmd.Flags().GetBool("descending")
 
 	lines := make(map[string]int)
 
@@ -84,7 +84,11 @@ func tally() {
 	})
 
 	// reverse?
-	slices.Reverse(sortedLines)
+	if reverse {
+		slices.Reverse(sortedLines)
+	}
 
-	fmt.Println(sortedLines)
+	for _, v := range sortedLines {
+		fmt.Println(v.line, v.count)
+	}
 }
