@@ -47,6 +47,7 @@ func init() {
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("descending", "d", false, "Sort descending")
 	rootCmd.Flags().BoolP("string", "s", false, "Sort by string, not count")
+	rootCmd.Flags().IntP("min", "m", 0, "minimum number of matches to print a line")
 
 }
 
@@ -57,7 +58,10 @@ func CountSingleFile(r io.Reader, ch chan<- map[string]int) {
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		lines[scanner.Text()] += 1
+		line := scanner.Text()
+		if len(line) > 0 {
+			lines[line] += 1
+		}
 	}
 	ch <- lines
 }
@@ -135,7 +139,11 @@ func tally(cmd *cobra.Command, args []string) {
 		slices.Reverse(sortedLines)
 	}
 
+	// TODO: flag to set a min threshold to display a count
 	for _, v := range sortedLines {
-		fmt.Println(v.line, v.count)
+		limit, _ := cmd.Flags().GetInt("min")
+		if v.count >= limit {
+			fmt.Println(v.count, ":", len(v.line), ":", v.line)
+		}
 	}
 }
