@@ -52,7 +52,7 @@ func init() {
 
 // countSingleFile returns map[string]int of a single reader.
 // TODO: need some tests for this.
-func CountSingleFile(r io.Reader, ch chan map[string]int) {
+func CountSingleFile(r io.Reader, ch chan<- map[string]int) {
 	lines := make(map[string]int)
 
 	scanner := bufio.NewScanner(r)
@@ -71,8 +71,12 @@ func tally(cmd *cobra.Command, args []string) {
 
 	lines := make(map[string]int)
 	var wg sync.WaitGroup
-	var GoCount int = min(len(args)+1, 100) // how many goroutines we spawn
-	var results = make(chan map[string]int, GoCount)
+	var results = make(chan map[string]int, len(args)+1)
+	var tokens = make(chan struct{}, min(
+		128,
+		len(args)+1,
+	)) // 128 is max number of goroutines
+
 	// read stdin or take the names of one or more files
 	if len(args) == 0 {
 		wg.Add(1)
@@ -86,10 +90,12 @@ func tally(cmd *cobra.Command, args []string) {
 				log.Fatal(err)
 			}
 			wg.Add(1)
-			go func(r io.Reader, ch chan map[string]int) {
+			go func(r io.Reader, ch chan<- map[string]int) {
 				defer wg.Done()
+				tokens <- struct{}{}
 				//fmt.Println("in goro with ", fname)
 				CountSingleFile(r, ch)
+				<-tokens
 			}(file, results)
 		}
 	}
