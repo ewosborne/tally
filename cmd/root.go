@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"sort"
+	"sync"
 
 	"github.com/spf13/cobra"
 )
@@ -51,42 +52,64 @@ func init() {
 
 // countSingleFile returns map[string]int of a single reader.
 // TODO: need some tests for this.
-func CountSingleFile(r io.Reader, lines map[string]int) {
+func CountSingleFile(r io.Reader, ch chan map[string]int) {
+	lines := make(map[string]int)
+
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		line := scanner.Text()
-		lines[line] += 1
+		lines[scanner.Text()] += 1
 	}
+	ch <- lines
+}
+
+type LineCount struct {
+	line  string
+	count int
 }
 
 func tally(cmd *cobra.Command, args []string) {
 
 	lines := make(map[string]int)
-
+	var wg sync.WaitGroup
+	var GoCount int = min(len(args)+1, 100) // how many goroutines we spawn
+	var results = make(chan map[string]int, GoCount)
 	// read stdin or take the names of one or more files
 	if len(args) == 0 {
-		CountSingleFile(os.Stdin, lines)
+		wg.Add(1)
+		CountSingleFile(os.Stdin, results)
+		wg.Done()
 	} else {
 		for _, fname := range args {
+			// open the file
 			file, err := os.Open(fname)
 			if err != nil {
 				log.Fatal(err)
 			}
-			defer file.Close()
-			CountSingleFile(file, lines)
+			wg.Add(1)
+			go func(r io.Reader, ch chan map[string]int) {
+				defer wg.Done()
+				//fmt.Println("in goro with ", fname)
+				CountSingleFile(r, ch)
+			}(file, results)
+		}
+	}
+	wg.Wait()
+	close(results)
+	// now aggregate
+	for res := range results {
+		for k, v := range res {
+			lines[k] += v
 		}
 	}
 
-	// now sort
-	type LineWithCount struct {
-		line  string
-		count int
-	}
+	wg.Wait()
 
-	sortedLines := make([]LineWithCount, 0, len(lines))
+	// now sort
+
+	sortedLines := make([]LineCount, 0, len(lines))
 
 	for line, count := range lines {
-		sortedLines = append(sortedLines, LineWithCount{line, count})
+		sortedLines = append(sortedLines, LineCount{line, count})
 	}
 
 	str_sort, _ := cmd.Flags().GetBool("string")
