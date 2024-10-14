@@ -76,11 +76,7 @@ func tally(cmd *cobra.Command, args []string) {
 	lines := make(map[string]int)
 	var wg sync.WaitGroup
 	var results = make(chan map[string]int, len(args)+1)
-	var tokens = make(chan struct{}, min(
-		128,
-		len(args)+1,
-	)) // 128 is max number of goroutines
-
+	var tokens = make(chan struct{}, len(args)+1)
 	// read stdin or take the names of one or more files
 	if len(args) == 0 {
 		wg.Add(1)
