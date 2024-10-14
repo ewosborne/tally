@@ -49,8 +49,8 @@ func init() {
 }
 
 func tally(cmd *cobra.Command) {
-	reverse, _ := cmd.Flags().GetBool("descending")
 
+	// read all of stdin
 	lines := make(map[string]int)
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -65,19 +65,18 @@ func tally(cmd *cobra.Command) {
 		count int
 	}
 
-	var sortedLines []LineWithCount
+	sortedLines := make([]LineWithCount, 0, len(lines))
 
 	for line, count := range lines {
 		sortedLines = append(sortedLines, LineWithCount{line, count})
 	}
-
-	// sort
 
 	sort.Slice(sortedLines, func(i, j int) bool {
 		return sortedLines[i].count < sortedLines[j].count
 	})
 
 	// reverse?
+	reverse, _ := cmd.Flags().GetBool("descending")
 	if reverse {
 		slices.Reverse(sortedLines)
 	}
