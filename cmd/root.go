@@ -5,9 +5,13 @@ No header.
 package cmd
 
 import (
+	"bufio"
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
+	"slices"
+	"sort"
+
+	"github.com/spf13/cobra"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -46,8 +50,41 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.PersistentFlags().Bool("descending", false, "Sort descending")
+
 }
 
 func tally() {
 	fmt.Println("hello from tally")
+
+	lines := make(map[string]int)
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		line := scanner.Text()
+		lines[line] += 1
+	}
+
+	// now sort
+	type LineWithCount struct {
+		line  string
+		count int
+	}
+
+	var sortedLines []LineWithCount
+
+	for line, count := range lines {
+		sortedLines = append(sortedLines, LineWithCount{line, count})
+	}
+
+	// sort
+
+	sort.Slice(sortedLines, func(i, j int) bool {
+		return sortedLines[i].count < sortedLines[j].count
+	})
+
+	// reverse?
+	slices.Reverse(sortedLines)
+
+	fmt.Println(sortedLines)
 }
