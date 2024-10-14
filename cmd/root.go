@@ -21,8 +21,6 @@ var rootCmd = &cobra.Command{
 	Use:   "tally",
 	Short: "Read stdin and return line:count pairs.",
 	Long:  `Basically the same as sort | uniq -c | sort .`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		tally(cmd, args)
 	},
@@ -52,7 +50,8 @@ func init() {
 }
 
 // countSingleFile returns map[string]int of a single reader.
-func countSingleFile(r io.Reader, lines map[string]int) {
+// TODO: need some tests for this.
+func CountSingleFile(r io.Reader, lines map[string]int) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -66,7 +65,7 @@ func tally(cmd *cobra.Command, args []string) {
 
 	// read stdin or take the names of one or more files
 	if len(args) == 0 {
-		countSingleFile(os.Stdin, lines)
+		CountSingleFile(os.Stdin, lines)
 	} else {
 		for _, fname := range args {
 			file, err := os.Open(fname)
@@ -74,7 +73,7 @@ func tally(cmd *cobra.Command, args []string) {
 				log.Fatal(err)
 			}
 			defer file.Close()
-			countSingleFile(file, lines)
+			CountSingleFile(file, lines)
 		}
 	}
 

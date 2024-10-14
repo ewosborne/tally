@@ -8,6 +8,7 @@ build: fmt
 	go build -o tally main.go
 
 test: fmt build
+	go test
 	./tally < test.txt
 	./tally test.txt
 	./tally test.txt test.txt
