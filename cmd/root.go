@@ -76,7 +76,8 @@ func tally(cmd *cobra.Command, args []string) {
 	lines := make(map[string]int)
 	var wg sync.WaitGroup
 	var results = make(chan map[string]int, len(args)+1)
-	var tokens = make(chan struct{}, len(args)+1)
+	var tokens = make(chan struct{}, 256) // 256 max goprocs at any one time.
+
 	// read stdin or take the names of one or more files
 	if len(args) == 0 {
 		wg.Add(1)
