@@ -10,6 +10,6 @@ build:
 test:
 	go run main.go < test.txt
 
-git comment:
+git comment: test
 	git commit -am "{{comment}}"
 	git push
