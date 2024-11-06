@@ -13,6 +13,7 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 )
@@ -140,15 +141,18 @@ func tally(cmd *cobra.Command, args []string) {
 	var csum int
 	showsum, _ := cmd.Flags().GetBool("sum")
 
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+
 	for _, v := range sortedLines {
 		limit, _ := cmd.Flags().GetInt("min")
 		csum += v.count
 		if v.count >= limit {
-			fmt.Printf("%v:%v\n", v.count, v.line)
+			fmt.Fprintf(w, "%v\t%v\n", v.count, v.line)
 		}
 
 	}
 	if showsum {
-		fmt.Printf("SUM:%v\n", csum)
+		fmt.Fprintf(w, "==========\n")
+		fmt.Fprintf(w, "SUM:%v\n", csum)
 	}
 }
