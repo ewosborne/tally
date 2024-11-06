@@ -18,3 +18,6 @@ test: fmt build
 git comment: fmt
 	git commit -am "{{comment}}"
 	git push
+
+install: test
+	go install
