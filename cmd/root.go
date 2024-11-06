@@ -45,9 +45,10 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("descending", "d", false, "Sort descending")
+	rootCmd.Flags().BoolP("reverse", "r", false, "Sort in reverse (descending count)")
 	rootCmd.Flags().BoolP("string", "s", false, "Sort by string, not count")
 	rootCmd.Flags().IntP("min", "m", 0, "minimum number of matches to print a line")
+	rootCmd.Flags().BoolP("sum", "", false, "Show sum of count")
 
 }
 
@@ -136,10 +137,18 @@ func tally(cmd *cobra.Command, args []string) {
 	}
 
 	// TODO: flag to set a min threshold to display a count
+	var csum int
+	showsum, _ := cmd.Flags().GetBool("sum")
+
 	for _, v := range sortedLines {
 		limit, _ := cmd.Flags().GetInt("min")
+		csum += v.count
 		if v.count >= limit {
-			fmt.Println(v.count, ":", len(v.line), ":", v.line)
+			fmt.Printf("%v:%v\n", v.count, v.line)
 		}
+
+	}
+	if showsum {
+		fmt.Printf("SUM:%v\n", csum)
 	}
 }
