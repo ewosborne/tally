@@ -155,4 +155,6 @@ func tally(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(w, "==========\n")
 		fmt.Fprintf(w, "SUM:%v\n", csum)
 	}
+
+	w.Flush()
 }
