@@ -142,6 +142,7 @@ func tally(cmd *cobra.Command, args []string) {
 	showsum, _ := cmd.Flags().GetBool("sum")
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+	defer w.Flush()
 
 	for _, v := range sortedLines {
 		limit, _ := cmd.Flags().GetInt("min")
@@ -156,5 +157,4 @@ func tally(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(w, "SUM:%v\n", csum)
 	}
 
-	w.Flush()
 }
