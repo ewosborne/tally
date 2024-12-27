@@ -5,6 +5,7 @@ eric@Erics-MacBook-Air tally % tally < sample-file.txt
 5 foo
 6 baz
 7 bar
+
 eric@Erics-MacBook-Air tally % sort < sample-file.txt| uniq -c | sort
    5 foo
    6 baz
