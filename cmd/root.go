@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -50,6 +51,9 @@ func init() {
 	rootCmd.Flags().BoolP("string", "s", false, "Sort by string, not count")
 	rootCmd.Flags().IntP("min", "m", 0, "minimum number of matches to print a line")
 	rootCmd.Flags().BoolP("sum", "", false, "Show sum of count")
+	rootCmd.Flags().BoolP("json", "j", false, "Output as JSON")
+	rootCmd.Flags().BoolP("text", "t", true, "Output as text")
+	rootCmd.MarkFlagsMutuallyExclusive("json", "text")
 
 }
 
@@ -69,21 +73,42 @@ func CountSingleFile(r io.Reader, ch chan<- map[string]int) {
 }
 
 type LineCount struct {
-	line  string
-	count int
+	Line  string `json:"line"`
+	Count int    `json:"count"`
+}
+
+type wordMap map[string]int
+
+func sortLines(lines wordMap, str_sort bool) []LineCount {
+
+	sortedLines := make([]LineCount, 0, len(lines))
+
+	for line, count := range lines {
+		sortedLines = append(sortedLines, LineCount{line, count})
+	}
+
+	if str_sort {
+		sort.Slice(sortedLines, func(i, j int) bool {
+			return sortedLines[i].Line < sortedLines[j].Line
+		})
+	} else {
+		sort.Slice(sortedLines, func(i, j int) bool {
+			return sortedLines[i].Count < sortedLines[j].Count
+		})
+	}
+
+	return sortedLines
 }
 
 func tally(cmd *cobra.Command, args []string) {
 
-	lines := make(map[string]int)
+	lines := make(wordMap)
 	var wg sync.WaitGroup
 	var results = make(chan map[string]int, len(args)+1)
 	var tokens = make(chan struct{}, len(args)+1)
 	// read stdin or take the names of one or more files
 	if len(args) == 0 {
-		wg.Add(1)
 		CountSingleFile(os.Stdin, results)
-		wg.Done()
 	} else {
 		for _, fname := range args {
 			// open the file
@@ -91,6 +116,8 @@ func tally(cmd *cobra.Command, args []string) {
 			if err != nil {
 				log.Fatal(err)
 			}
+			defer file.Close()
+
 			wg.Add(1)
 			go func(r io.Reader, ch chan<- map[string]int) {
 				defer wg.Done()
@@ -110,26 +137,10 @@ func tally(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	wg.Wait()
-
 	// now sort
 
-	sortedLines := make([]LineCount, 0, len(lines))
-
-	for line, count := range lines {
-		sortedLines = append(sortedLines, LineCount{line, count})
-	}
-
 	str_sort, _ := cmd.Flags().GetBool("string")
-	if str_sort {
-		sort.Slice(sortedLines, func(i, j int) bool {
-			return sortedLines[i].line < sortedLines[j].line
-		})
-	} else {
-		sort.Slice(sortedLines, func(i, j int) bool {
-			return sortedLines[i].count < sortedLines[j].count
-		})
-	}
+	sortedLines := sortLines(lines, str_sort)
 
 	// reverse?
 	reverse, _ := cmd.Flags().GetBool("descending")
@@ -144,17 +155,30 @@ func tally(cmd *cobra.Command, args []string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 	defer w.Flush()
 
-	for _, v := range sortedLines {
-		limit, _ := cmd.Flags().GetInt("min")
-		csum += v.count
-		if v.count >= limit {
-			fmt.Fprintf(w, "%v\t%v\n", v.count, v.line)
+	txtOutput, _ := cmd.Flags().GetBool("text")
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+
+	if jsonOutput {
+		out, err := json.MarshalIndent(sortedLines, "", " ")
+		if err != nil {
+			panic("TODO fixme")
 		}
 
-	}
-	if showsum {
-		fmt.Fprintf(w, "==========\n")
-		fmt.Fprintf(w, "SUM:%v\n", csum)
+		fmt.Println(string(out))
+	} else if txtOutput {
+
+		for _, v := range sortedLines {
+			limit, _ := cmd.Flags().GetInt("min")
+			csum += v.Count
+			if v.Count >= limit {
+				fmt.Fprintf(w, "%v\t%v\n", v.Count, v.Line)
+			}
+
+		}
+		if showsum {
+			fmt.Fprintf(w, "==========\n")
+			fmt.Fprintf(w, "SUM:%v\n", csum)
+		}
 	}
 
 }
