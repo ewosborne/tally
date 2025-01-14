@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"slices"
 	"sort"
 	"sync"
@@ -79,7 +80,7 @@ type LineCount struct {
 
 type wordMap map[string]int
 
-func sortLines(lines wordMap, str_sort bool) []LineCount {
+func sortLines(lines wordMap, sortByLines bool) []LineCount {
 
 	sortedLines := make([]LineCount, 0, len(lines))
 
@@ -87,7 +88,7 @@ func sortLines(lines wordMap, str_sort bool) []LineCount {
 		sortedLines = append(sortedLines, LineCount{line, count})
 	}
 
-	if str_sort {
+	if sortByLines {
 		sort.Slice(sortedLines, func(i, j int) bool {
 			return sortedLines[i].Line < sortedLines[j].Line
 		})
@@ -104,7 +105,7 @@ func tally(cmd *cobra.Command, args []string) {
 
 	lines := make(wordMap)
 	var wg sync.WaitGroup
-	var results = make(chan map[string]int, len(args)+1)
+	var results = make(chan map[string]int, runtime.NumCPU()*2)
 	var tokens = make(chan struct{}, len(args)+1)
 	// read stdin or take the names of one or more files
 	if len(args) == 0 {
@@ -139,8 +140,8 @@ func tally(cmd *cobra.Command, args []string) {
 
 	// now sort
 
-	str_sort, _ := cmd.Flags().GetBool("string")
-	sortedLines := sortLines(lines, str_sort)
+	sortByString, _ := cmd.Flags().GetBool("string")
+	sortedLines := sortLines(lines, sortByString)
 
 	// reverse?
 	reverse, _ := cmd.Flags().GetBool("descending")
@@ -149,11 +150,6 @@ func tally(cmd *cobra.Command, args []string) {
 	}
 
 	// TODO: flag to set a min threshold to display a count
-	var csum int
-	showsum, _ := cmd.Flags().GetBool("sum")
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-	defer w.Flush()
 
 	txtOutput, _ := cmd.Flags().GetBool("text")
 	jsonOutput, _ := cmd.Flags().GetBool("json")
@@ -166,7 +162,11 @@ func tally(cmd *cobra.Command, args []string) {
 
 		fmt.Println(string(out))
 	} else if txtOutput {
+		csum := 0
+		showsum, _ := cmd.Flags().GetBool("sum")
 
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+		defer w.Flush()
 		for _, v := range sortedLines {
 			limit, _ := cmd.Flags().GetInt("min")
 			csum += v.Count

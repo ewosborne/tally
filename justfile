@@ -13,6 +13,8 @@ test: fmt build
 	./tally test.txt
 	./tally test.txt test.txt
 	./tally test.txt test.txt test.txt
+	./tally test.txt test.txt test.txt --json
+	./tally test.txt test.txt test.txt --text
 
 
 git comment: fmt
