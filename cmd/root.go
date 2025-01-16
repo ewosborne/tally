@@ -166,14 +166,14 @@ func tally(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	newSortedLines := make([]LineCount, 0, len(sortedLines))
+	tmpSortedLines := make([]LineCount, 0, len(sortedLines))
 	limit, _ := cmd.Flags().GetInt("min")
 	for _, v := range sortedLines {
 		if v.Count >= limit {
-			newSortedLines = append(newSortedLines, v)
+			tmpSortedLines = append(tmpSortedLines, v)
 		}
 	}
-	sortedLines = newSortedLines
+	sortedLines = tmpSortedLines
 
 	lcws := LineCountWithSum{sortedLines, csum}
 
