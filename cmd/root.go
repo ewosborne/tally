@@ -154,7 +154,18 @@ func tally(cmd *cobra.Command, args []string) {
 	txtOutput, _ := cmd.Flags().GetBool("text")
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 
+	// figure out sum in case I need it
+	showsum, _ := cmd.Flags().GetBool("sum")
+	csum := 0
+	for _, v := range sortedLines {
+		csum += v.Count
+	}
+
 	if jsonOutput {
+		// need to add sum to sortedLines somehow, not sure.
+		if showsum {
+			sortedLines = append(sortedLines, LineCount{"SUM", csum})
+		}
 		out, err := json.MarshalIndent(sortedLines, "", " ")
 		if err != nil {
 			panic("TODO fixme")
@@ -162,18 +173,14 @@ func tally(cmd *cobra.Command, args []string) {
 
 		fmt.Println(string(out))
 	} else if txtOutput {
-		csum := 0
-		showsum, _ := cmd.Flags().GetBool("sum")
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 		defer w.Flush()
+		limit, _ := cmd.Flags().GetInt("min")
 		for _, v := range sortedLines {
-			limit, _ := cmd.Flags().GetInt("min")
-			csum += v.Count
 			if v.Count >= limit {
 				fmt.Fprintf(w, "%v\t%v\n", v.Count, v.Line)
 			}
-
 		}
 		if showsum {
 			fmt.Fprintf(w, "==========\n")
