@@ -78,6 +78,11 @@ type LineCount struct {
 	Count int    `json:"count"`
 }
 
+type LineCountWithSum struct {
+	LineCount []LineCount `json:"linecount"`
+	Sum       int         `json:"sum,omitempty"`
+}
+
 type wordMap map[string]int
 
 func sortLines(lines wordMap, sortByLines bool) []LineCount {
@@ -157,16 +162,17 @@ func tally(cmd *cobra.Command, args []string) {
 	// figure out sum in case I need it
 	showsum, _ := cmd.Flags().GetBool("sum")
 	csum := 0
-	for _, v := range sortedLines {
-		csum += v.Count
+	if showsum {
+		for _, v := range sortedLines {
+			csum += v.Count
+		}
 	}
+
+	lcws := LineCountWithSum{sortedLines, csum}
 
 	if jsonOutput {
 		// need to add sum to sortedLines somehow, not sure.
-		if showsum {
-			sortedLines = append(sortedLines, LineCount{"SUM", csum})
-		}
-		out, err := json.MarshalIndent(sortedLines, "", " ")
+		out, err := json.MarshalIndent(lcws, "", " ")
 		if err != nil {
 			panic("TODO fixme")
 		}
@@ -177,14 +183,14 @@ func tally(cmd *cobra.Command, args []string) {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 		defer w.Flush()
 		limit, _ := cmd.Flags().GetInt("min")
-		for _, v := range sortedLines {
+		for _, v := range lcws.LineCount {
 			if v.Count >= limit {
 				fmt.Fprintf(w, "%v\t%v\n", v.Count, v.Line)
 			}
 		}
 		if showsum {
 			fmt.Fprintf(w, "==========\n")
-			fmt.Fprintf(w, "SUM:%v\n", csum)
+			fmt.Fprintf(w, "SUM:%v\n", lcws.Sum)
 		}
 	}
 
