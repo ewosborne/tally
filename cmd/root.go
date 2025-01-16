@@ -154,8 +154,6 @@ func tally(cmd *cobra.Command, args []string) {
 		slices.Reverse(sortedLines)
 	}
 
-	// TODO: flag to set a min threshold to display a count
-
 	txtOutput, _ := cmd.Flags().GetBool("text")
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 
@@ -167,6 +165,15 @@ func tally(cmd *cobra.Command, args []string) {
 			csum += v.Count
 		}
 	}
+
+	newSortedLines := make([]LineCount, 0, len(sortedLines))
+	limit, _ := cmd.Flags().GetInt("min")
+	for _, v := range sortedLines {
+		if v.Count >= limit {
+			newSortedLines = append(newSortedLines, v)
+		}
+	}
+	sortedLines = newSortedLines
 
 	lcws := LineCountWithSum{sortedLines, csum}
 
@@ -182,11 +189,8 @@ func tally(cmd *cobra.Command, args []string) {
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
 		defer w.Flush()
-		limit, _ := cmd.Flags().GetInt("min")
 		for _, v := range lcws.LineCount {
-			if v.Count >= limit {
-				fmt.Fprintf(w, "%v\t%v\n", v.Count, v.Line)
-			}
+			fmt.Fprintf(w, "%v\t%v\n", v.Count, v.Line)
 		}
 		if showsum {
 			fmt.Fprintf(w, "==========\n")
