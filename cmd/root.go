@@ -21,7 +21,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
 const (
 	SortByDefault = iota
 	SortByLines
@@ -63,7 +62,6 @@ func init() {
 	rootCmd.Flags().BoolP("text", "t", true, "Output as text")
 	rootCmd.MarkFlagsMutuallyExclusive("json", "text")
 	rootCmd.MarkFlagsMutuallyExclusive("string", "number")
-
 
 }
 
@@ -148,13 +146,17 @@ func runTally(cmd *cobra.Command, args []string) {
 	}
 
 	// Sorting
-	sortKind := SortByDefault
+	//sortKind := SortByDefault
+	var sortedLines []LineCount
 	if flag, _ := cmd.Flags().GetBool("string"); flag {
-		sortKind = SortByLines
+		//sortKind = SortByLines
+		sortedLines = sortLines(lines, SortByLines)
 	} else if flag, _ := cmd.Flags().GetBool("number"); flag {
-		sortKind = SortByNum
+		//sortKind = SortByNum
+		sortedLines = sortLines(lines, SortByNum)
+	} else {
+		sortedLines = sortLines(lines, SortByDefault)
 	}
-	sortedLines := sortLines(lines, sortKind)
 
 	// Reverse if needed
 	if reverse, _ := cmd.Flags().GetBool("reverse"); reverse {
