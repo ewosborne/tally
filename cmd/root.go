@@ -116,8 +116,10 @@ func sortLines(lines map[string]int, sortKind int) []LineCount {
 }
 
 func runTally(cmd *cobra.Command, args []string) {
-	lines := make(map[string]int)
 	var wg sync.WaitGroup
+	var sortedLines []LineCount
+
+	lines := make(map[string]int)
 	results := make(chan map[string]int, runtime.NumCPU())
 
 	// Read from stdin or files
@@ -146,13 +148,9 @@ func runTally(cmd *cobra.Command, args []string) {
 	}
 
 	// Sorting
-	//sortKind := SortByDefault
-	var sortedLines []LineCount
 	if flag, _ := cmd.Flags().GetBool("string"); flag {
-		//sortKind = SortByLines
 		sortedLines = sortLines(lines, SortByLines)
 	} else if flag, _ := cmd.Flags().GetBool("number"); flag {
-		//sortKind = SortByNum
 		sortedLines = sortLines(lines, SortByNum)
 	} else {
 		sortedLines = sortLines(lines, SortByDefault)
