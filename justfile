@@ -15,6 +15,9 @@ test: fmt build
 	./tally test.txt test.txt test.txt
 	./tally test.txt test.txt test.txt --json
 	./tally test.txt test.txt test.txt --text
+	./tally metrics.txt  | tail
+	./tally -n metrics.txt | tail 
+	./tally -s metrics.txt | tail
 
 
 git comment: fmt
