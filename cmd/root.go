@@ -70,13 +70,15 @@ type LineCount struct {
 	Count int    `json:"count"`
 }
 
+type LineMap map[string]int
+
 type LineCountWithSum struct {
 	LineCount []LineCount `json:"linecount"`
 	Sum       int         `json:"sum,omitempty"`
 }
 
-func countLines(r io.Reader) map[string]int {
-	lines := make(map[string]int)
+func countLines(r io.Reader) LineMap {
+	lines := make(LineMap)
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -88,7 +90,20 @@ func countLines(r io.Reader) map[string]int {
 	return lines
 }
 
-func sortLines(lines map[string]int, sortKind int) []LineCount {
+func sortWrap(cmd *cobra.Command, lines LineMap) []LineCount {
+	var sortedLines []LineCount
+	if flag, _ := cmd.Flags().GetBool("string"); flag {
+		sortedLines = sortLines(lines, SortByLines)
+	} else if flag, _ := cmd.Flags().GetBool("number"); flag {
+		sortedLines = sortLines(lines, SortByNum)
+	} else {
+		sortedLines = sortLines(lines, SortByDefault)
+	}
+
+	return sortedLines
+}
+
+func sortLines(lines LineMap, sortKind int) []LineCount {
 
 	sorted := make([]LineCount, 0, len(lines))
 
@@ -115,11 +130,11 @@ func sortLines(lines map[string]int, sortKind int) []LineCount {
 	return sorted
 }
 
-func readInput(args []string) map[string]int {
+func readInput(args []string) LineMap {
 	var wg sync.WaitGroup
-	results := make(chan map[string]int, runtime.NumCPU())
+	results := make(chan LineMap, runtime.NumCPU())
 
-	lines := make(map[string]int)
+	lines := make(LineMap)
 
 	// Read from stdin or files
 	if len(args) == 0 {
@@ -145,7 +160,6 @@ func readInput(args []string) map[string]int {
 			}
 		}
 	}
-
 	return lines
 
 }
@@ -156,13 +170,7 @@ func runTally(cmd *cobra.Command, args []string) {
 	lines := readInput(args)
 
 	// Sorting
-	if flag, _ := cmd.Flags().GetBool("string"); flag {
-		sortedLines = sortLines(lines, SortByLines)
-	} else if flag, _ := cmd.Flags().GetBool("number"); flag {
-		sortedLines = sortLines(lines, SortByNum)
-	} else {
-		sortedLines = sortLines(lines, SortByDefault)
-	}
+	sortedLines = sortWrap(cmd, lines)
 
 	// Reverse if needed
 	if reverse, _ := cmd.Flags().GetBool("reverse"); reverse {
