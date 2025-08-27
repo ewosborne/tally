@@ -115,12 +115,11 @@ func sortLines(lines map[string]int, sortKind int) []LineCount {
 	return sorted
 }
 
-func runTally(cmd *cobra.Command, args []string) {
+func readInput(args []string) map[string]int {
 	var wg sync.WaitGroup
-	var sortedLines []LineCount
+	results := make(chan map[string]int, runtime.NumCPU())
 
 	lines := make(map[string]int)
-	results := make(chan map[string]int, runtime.NumCPU())
 
 	// Read from stdin or files
 	if len(args) == 0 {
@@ -146,6 +145,15 @@ func runTally(cmd *cobra.Command, args []string) {
 			}
 		}
 	}
+
+	return lines
+
+}
+
+func runTally(cmd *cobra.Command, args []string) {
+	var sortedLines []LineCount
+
+	lines := readInput(args)
 
 	// Sorting
 	if flag, _ := cmd.Flags().GetBool("string"); flag {
