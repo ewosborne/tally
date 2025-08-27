@@ -16,8 +16,16 @@ import (
 	"sort"
 	"sync"
 	"text/tabwriter"
+	"strconv"
 
 	"github.com/spf13/cobra"
+)
+
+
+const (
+	SortByDefault = iota
+	SortByLines
+	SortByNum
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -50,11 +58,14 @@ func init() {
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("reverse", "r", false, "Sort in reverse (descending count)")
 	rootCmd.Flags().BoolP("string", "s", false, "Sort by string, not count")
+	rootCmd.Flags().BoolP("number", "n", false, "Convert line to number (float64 internally) and sort by that")
 	rootCmd.Flags().IntP("min", "m", 0, "minimum number of matches to print a line")
 	rootCmd.Flags().BoolP("sum", "", false, "Show sum of count")
 	rootCmd.Flags().BoolP("json", "j", false, "Output as JSON")
 	rootCmd.Flags().BoolP("text", "t", true, "Output as text")
 	rootCmd.MarkFlagsMutuallyExclusive("json", "text")
+	rootCmd.MarkFlagsMutuallyExclusive("string", "number")
+
 
 }
 
@@ -85,7 +96,7 @@ type LineCountWithSum struct {
 
 type wordMap map[string]int
 
-func sortLines(lines wordMap, sortByLines bool) []LineCount {
+func sortLines(lines wordMap, sortKind int) []LineCount {
 
 	sortedLines := make([]LineCount, 0, len(lines))
 
@@ -93,6 +104,27 @@ func sortLines(lines wordMap, sortByLines bool) []LineCount {
 		sortedLines = append(sortedLines, LineCount{line, count})
 	}
 
+	switch sortKind {
+	case SortByLines:
+		sort.Slice(sortedLines, func(i, j int) bool {
+			return sortedLines[i].Line < sortedLines[j].Line
+		})
+	case SortByNum:
+		sort.Slice(sortedLines, func(i, j int) bool {
+		intI, _ := strconv.ParseFloat(sortedLines[i].Line, 64)
+		intJ, _ := strconv.ParseFloat(sortedLines[j].Line,64)
+				return intI < intJ
+			})
+	default:
+		sort.Slice(sortedLines, func(i, j int) bool {
+			return sortedLines[i].Count < sortedLines[j].Count
+	})
+	}
+	return sortedLines
+}
+
+			
+/*
 	if sortByLines {
 		sort.Slice(sortedLines, func(i, j int) bool {
 			return sortedLines[i].Line < sortedLines[j].Line
@@ -102,9 +134,8 @@ func sortLines(lines wordMap, sortByLines bool) []LineCount {
 			return sortedLines[i].Count < sortedLines[j].Count
 		})
 	}
+		*/
 
-	return sortedLines
-}
 
 func tally(cmd *cobra.Command, args []string) {
 
@@ -145,8 +176,20 @@ func tally(cmd *cobra.Command, args []string) {
 
 	// now sort
 
+	
+	var sortedLines []LineCount
 	sortByString, _ := cmd.Flags().GetBool("string")
-	sortedLines := sortLines(lines, sortByString)
+	sortByNum, _ := cmd.Flags().GetBool("number")
+	if sortByString {
+		sortedLines = sortLines(lines, SortByLines)
+	} else if sortByNum {
+		sortedLines = sortLines(lines, SortByNum)
+	} else {
+		sortedLines = sortLines(lines, SortByDefault)
+	}
+
+	
+	//sortedLines := sortLines(lines, SortByNum)
 
 	// reverse?
 	reverse, _ := cmd.Flags().GetBool("descending")
@@ -173,7 +216,7 @@ func tally(cmd *cobra.Command, args []string) {
 			tmpSortedLines = append(tmpSortedLines, v)
 		}
 	}
-	sortedLines = tmpSortedLines
+	//sortedLines = tmpSortedLines
 
 	lcws := LineCountWithSum{sortedLines, csum}
 
