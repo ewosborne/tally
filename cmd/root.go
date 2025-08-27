@@ -14,9 +14,9 @@ import (
 	"runtime"
 	"slices"
 	"sort"
+	"strconv"
 	"sync"
 	"text/tabwriter"
-	"strconv"
 
 	"github.com/spf13/cobra"
 )
@@ -33,9 +33,7 @@ var rootCmd = &cobra.Command{
 	Use:   "tally",
 	Short: "Read stdin and return line:count pairs.",
 	Long:  `Basically the same as sort | uniq -c | sort .`,
-	Run: func(cmd *cobra.Command, args []string) {
-		tally(cmd, args)
-	},
+	Run:   runTally,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -60,28 +58,13 @@ func init() {
 	rootCmd.Flags().BoolP("string", "s", false, "Sort by string, not count")
 	rootCmd.Flags().BoolP("number", "n", false, "Convert line to number (float64 internally) and sort by that")
 	rootCmd.Flags().IntP("min", "m", 0, "minimum number of matches to print a line")
-	rootCmd.Flags().BoolP("sum", "", false, "Show sum of count")
+	rootCmd.Flags().Bool("sum", false, "Show sum of count")
 	rootCmd.Flags().BoolP("json", "j", false, "Output as JSON")
 	rootCmd.Flags().BoolP("text", "t", true, "Output as text")
 	rootCmd.MarkFlagsMutuallyExclusive("json", "text")
 	rootCmd.MarkFlagsMutuallyExclusive("string", "number")
 
 
-}
-
-// countSingleFile returns map[string]int of a single reader.
-// TODO: need some tests for this.
-func CountSingleFile(r io.Reader, ch chan<- map[string]int) {
-	lines := make(map[string]int)
-
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if len(line) > 0 {
-			lines[line] += 1
-		}
-	}
-	ch <- lines
 }
 
 type LineCount struct {
@@ -94,151 +77,126 @@ type LineCountWithSum struct {
 	Sum       int         `json:"sum,omitempty"`
 }
 
-type wordMap map[string]int
+func countLines(r io.Reader) map[string]int {
+	lines := make(map[string]int)
 
-func sortLines(lines wordMap, sortKind int) []LineCount {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line != "" {
+			lines[line]++
+		}
+	}
+	return lines
+}
 
-	sortedLines := make([]LineCount, 0, len(lines))
+func sortLines(lines map[string]int, sortKind int) []LineCount {
+
+	sorted := make([]LineCount, 0, len(lines))
 
 	for line, count := range lines {
-		sortedLines = append(sortedLines, LineCount{line, count})
+		sorted = append(sorted, LineCount{line, count})
 	}
 
 	switch sortKind {
 	case SortByLines:
-		sort.Slice(sortedLines, func(i, j int) bool {
-			return sortedLines[i].Line < sortedLines[j].Line
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].Line < sorted[j].Line
 		})
 	case SortByNum:
-		sort.Slice(sortedLines, func(i, j int) bool {
-		intI, _ := strconv.ParseFloat(sortedLines[i].Line, 64)
-		intJ, _ := strconv.ParseFloat(sortedLines[j].Line,64)
-				return intI < intJ
-			})
+		sort.Slice(sorted, func(i, j int) bool {
+			numI, _ := strconv.ParseFloat(sorted[i].Line, 64)
+			numJ, _ := strconv.ParseFloat(sorted[j].Line, 64)
+			return numI < numJ
+		})
 	default:
-		sort.Slice(sortedLines, func(i, j int) bool {
-			return sortedLines[i].Count < sortedLines[j].Count
-	})
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].Count < sorted[j].Count
+		})
 	}
-	return sortedLines
+	return sorted
 }
 
-			
-/*
-	if sortByLines {
-		sort.Slice(sortedLines, func(i, j int) bool {
-			return sortedLines[i].Line < sortedLines[j].Line
-		})
-	} else {
-		sort.Slice(sortedLines, func(i, j int) bool {
-			return sortedLines[i].Count < sortedLines[j].Count
-		})
-	}
-		*/
-
-
-func tally(cmd *cobra.Command, args []string) {
-
-	lines := make(wordMap)
+func runTally(cmd *cobra.Command, args []string) {
+	lines := make(map[string]int)
 	var wg sync.WaitGroup
-	var results = make(chan map[string]int, runtime.NumCPU()*2)
-	var tokens = make(chan struct{}, len(args)+1)
-	// read stdin or take the names of one or more files
+	results := make(chan map[string]int, runtime.NumCPU())
+
+	// Read from stdin or files
 	if len(args) == 0 {
-		CountSingleFile(os.Stdin, results)
+		lines = countLines(os.Stdin)
 	} else {
 		for _, fname := range args {
-			// open the file
 			file, err := os.Open(fname)
 			if err != nil {
-				log.Fatal(err)
+				log.Fatalf("failed to open file %s: %v", fname, err)
 			}
 			defer file.Close()
-
 			wg.Add(1)
-			go func(r io.Reader, ch chan<- map[string]int) {
+			go func(f io.Reader) {
 				defer wg.Done()
-				tokens <- struct{}{}
-				//fmt.Println("in goro with ", fname)
-				CountSingleFile(r, ch)
-				<-tokens
-			}(file, results)
+				results <- countLines(f)
+			}(file)
 		}
-	}
-	wg.Wait()
-	close(results)
-	// now aggregate
-	for res := range results {
-		for k, v := range res {
-			lines[k] += v
+		wg.Wait()
+		close(results)
+		for res := range results {
+			for k, v := range res {
+				lines[k] += v
+			}
 		}
 	}
 
-	// now sort
-
-	
-	var sortedLines []LineCount
-	sortByString, _ := cmd.Flags().GetBool("string")
-	sortByNum, _ := cmd.Flags().GetBool("number")
-	if sortByString {
-		sortedLines = sortLines(lines, SortByLines)
-	} else if sortByNum {
-		sortedLines = sortLines(lines, SortByNum)
-	} else {
-		sortedLines = sortLines(lines, SortByDefault)
+	// Sorting
+	sortKind := SortByDefault
+	if flag, _ := cmd.Flags().GetBool("string"); flag {
+		sortKind = SortByLines
+	} else if flag, _ := cmd.Flags().GetBool("number"); flag {
+		sortKind = SortByNum
 	}
+	sortedLines := sortLines(lines, sortKind)
 
-	
-	//sortedLines := sortLines(lines, SortByNum)
-
-	// reverse?
-	reverse, _ := cmd.Flags().GetBool("descending")
-	if reverse {
+	// Reverse if needed
+	if reverse, _ := cmd.Flags().GetBool("reverse"); reverse {
 		slices.Reverse(sortedLines)
 	}
 
-	txtOutput, _ := cmd.Flags().GetBool("text")
-	jsonOutput, _ := cmd.Flags().GetBool("json")
-
-	// figure out sum in case I need it
-	showsum, _ := cmd.Flags().GetBool("sum")
-	csum := 0
-	if showsum {
-		for _, v := range sortedLines {
-			csum += v.Count
-		}
-	}
-
-	tmpSortedLines := make([]LineCount, 0, len(sortedLines))
-	limit, _ := cmd.Flags().GetInt("min")
+	// Filter by min count
+	minCount, _ := cmd.Flags().GetInt("min")
+	filtered := make([]LineCount, 0, len(sortedLines))
 	for _, v := range sortedLines {
-		if v.Count >= limit {
-			tmpSortedLines = append(tmpSortedLines, v)
+		if v.Count >= minCount {
+			filtered = append(filtered, v)
 		}
 	}
-	//sortedLines = tmpSortedLines
 
-	lcws := LineCountWithSum{sortedLines, csum}
+	// Calculate sum if needed
+	showSum, _ := cmd.Flags().GetBool("sum")
+	sum := 0
+	if showSum {
+		for _, v := range filtered {
+			sum += v.Count
+		}
+	}
+
+	output := LineCountWithSum{LineCount: filtered, Sum: sum}
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	textOutput, _ := cmd.Flags().GetBool("text")
 
 	if jsonOutput {
-		// need to add sum to sortedLines somehow, not sure.
-		out, err := json.MarshalIndent(lcws, "", " ")
+		out, err := json.MarshalIndent(output, "", "  ")
 		if err != nil {
-			panic("TODO fixme")
+			log.Fatalf("failed to marshal JSON: %v", err)
 		}
-
 		fmt.Println(string(out))
-	} else if txtOutput {
-
+	} else if textOutput {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		defer w.Flush()
-		for _, v := range lcws.LineCount {
+		for _, v := range output.LineCount {
 			fmt.Fprintf(w, "%v\t%v\n", v.Count, v.Line)
 		}
-		if showsum {
-			fmt.Fprintf(w, "==========\n")
-			fmt.Fprintf(w, "SUM:%v\n", lcws.Sum)
+		if showSum {
+			fmt.Fprintf(w, "==========\nSUM:%v\n", output.Sum)
 		}
+		w.Flush()
 	}
-
 }
