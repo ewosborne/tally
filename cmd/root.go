@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"os"
 	"runtime"
 	"slices"
@@ -69,6 +70,10 @@ func init() {
 	// and if sort by right, sort as string or number
 	// or do I just try to convert everything to a float and let it do its thing?
 	// no, don't do that, parsefloat gets clever about Inf and NaN.
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+	slog.Info("hello")
 }
 
 type LineCount struct {
