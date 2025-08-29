@@ -54,15 +54,21 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("reverse", "r", false, "Sort in reverse (descending count)")
-	rootCmd.Flags().BoolP("string", "s", false, "Sort by string, not count")
-	rootCmd.Flags().BoolP("number", "n", false, "Convert line to number (float64 internally) and sort by that")
+	rootCmd.Flags().BoolP("item", "i", false, "Sort by item, not count")
+	rootCmd.Flags().BoolP("number", "n", false, "Convert item to number (float64 internally) before sorting")
 	rootCmd.Flags().IntP("min", "m", 0, "minimum number of matches to print a line")
 	rootCmd.Flags().Bool("sum", false, "Show sum of count")
 	rootCmd.Flags().BoolP("json", "j", false, "Output as JSON")
 	rootCmd.Flags().BoolP("text", "t", true, "Output as text")
 	rootCmd.MarkFlagsMutuallyExclusive("json", "text")
-	rootCmd.MarkFlagsMutuallyExclusive("string", "number")
+	//rootCmd.MarkFlagsMutuallyExclusive("string", "number")
 
+	// ok so what I want is sort by left column or right
+	// left column is the count
+	// right column is the thing
+	// and if sort by right, sort as string or number
+	// or do I just try to convert everything to a float and let it do its thing?
+	// no, don't do that, parsefloat gets clever about Inf and NaN.
 }
 
 type LineCount struct {
@@ -92,7 +98,7 @@ func countLines(r io.Reader) LineMap {
 
 func sortWrap(cmd *cobra.Command, lines LineMap) []LineCount {
 	var sortedLines []LineCount
-	if flag, _ := cmd.Flags().GetBool("string"); flag {
+	if flag, _ := cmd.Flags().GetBool("item"); flag {
 		sortedLines = sortLines(lines, SortByLines)
 	} else if flag, _ := cmd.Flags().GetBool("number"); flag {
 		sortedLines = sortLines(lines, SortByNum)
